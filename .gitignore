@@ -1,0 +1,6 @@
+.env
+config.json
+conexoes.json
+*.tmp
+.venv/
+__pycache__/

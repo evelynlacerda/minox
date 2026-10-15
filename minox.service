@@ -1,0 +1,15 @@
+[Unit]
+Description=Minox - bot de voz 24h do Discord
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/minox
+ExecStart=/home/ubuntu/minox/.venv/bin/python bot.py
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
