@@ -1,2 +1,4 @@
 discord.py[voice]>=2.7.1
 python-dotenv>=1.0
+
+tzdata>=2024.1

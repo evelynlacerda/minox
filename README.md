@@ -2,7 +2,7 @@
 
 Bot de Discord, de código aberto e escrito em Python, que fica 24h numa sala de voz, mudo e ensurdecido, em quantos servidores você quiser. Em cada servidor, um administrador escolhe a sala. Se o bot for desconectado, movido ou a conexão cair, ele volta sozinho.
 
-- Sem intents privilegiadas e sem tocar áudio: só presença na sala.
+- Sem tocar áudio: só presença na sala. Única intent privilegiada: *Message Content*, para os cumprimentos.
 - Sem banco de dados: o estado fica em dois arquivos JSON.
 - Um único arquivo de código (`bot.py`), fácil de ler e de modificar.
 
@@ -25,6 +25,19 @@ Bot de Discord, de código aberto e escrito em Python, que fica 24h numa sala de
 - **Sharding automático** (`AutoShardedClient`) a partir de ~2.500 servidores.
 - **Comandos globais**, registrados uma única vez. Se algum servidor mostrar comandos duplicados, coloque o ID dele em `DEV_GUILD_ID` e o bot apaga as cópias extras ao iniciar.
 
+## Cumprimentos automáticos
+
+Em qualquer sala de texto ou chat de voz, se a mensagem tiver "bom dia", "boa tarde" ou "boa noite" (qualquer caixa, com a última letra repetida, ex.: `BOM DIAaaa`), o bot responde conforme o horário de Brasília:
+
+| Horário | Cumprimento aceito | Resposta |
+|---|---|---|
+| 06:00–11:59 | bom dia | Bom dia! |
+| 12:00–17:59 | boa tarde | Boa tarde! |
+| 18:00–00:00 | boa noite | Boa noite! |
+| 00:01–05:59 | boa noite | Hora do meu descanso, boa noite! |
+
+Cumprimentos fora do horário são ignorados.
+
 ## Requisitos
 
 - Python 3.10 ou superior
@@ -37,8 +50,8 @@ Bot de Discord, de código aberto e escrito em Python, que fica 24h numa sala de
 
 1. No Developer Portal, clique em **New Application** e dê um nome (ex.: `Minox`).
 2. Em **Bot → Reset Token**, copie o token. Nunca o publique.
-3. Deixe as três *Privileged Gateway Intents* desligadas e **Requires OAuth2 Code Grant** desligado.
-4. Em **OAuth2 → URL Generator**, marque os scopes `bot` e `applications.commands` e as permissões `View Channels`, `Connect`, `Send Messages` e `Embed Links` (as duas últimas são para os avisos de desconexão). A URL gerada é o link de convite.
+3. Em **Bot → Privileged Gateway Intents**, ligue só **Message Content Intent** (os cumprimentos precisam ler o texto; acima de 100 servidores o Discord exige verificação). Deixe as outras desligadas e **Requires OAuth2 Code Grant** desligado.
+4. Em **OAuth2 → URL Generator**, marque os scopes `bot` e `applications.commands` e as permissões `View Channels`, `Connect`, `Send Messages` e `Embed Links` (para os avisos de desconexão e as respostas de cumprimento). A URL gerada é o link de convite.
 
 ### 2. Rode localmente
 

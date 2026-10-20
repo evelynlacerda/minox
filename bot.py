@@ -7,6 +7,7 @@ Minox — fica 24h numa sala de voz do Discord, em vários servidores.
 - A cada desconexão avisa no chat da sala (ou no canal de /definir-avisos),
   com tempo conectado, início, fim e motivo.
 - /tempo-online mostra a conexão atual e a última (início, fim, duração e motivo).
+- Responde "Bom dia!", "Boa tarde!" e "Boa noite!" em qualquer sala, conforme o horário de Brasília.
 - Usa AutoShardedClient: escala sozinho quando passar de ~2.500 servidores.
 """
 
@@ -14,9 +15,11 @@ import asyncio
 import json
 import logging
 import os
+import re
 import signal
 from datetime import datetime, timezone
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 import discord
 from discord import app_commands
@@ -34,6 +37,7 @@ SESSIONS_FILE = BASE_DIR / "conexoes.json"
 RECONNECT_DELAY = 5          # segundos antes de tentar voltar
 CHECK_INTERVAL = 60          # verificação periódica (segundos)
 STAGGER = 0.5                # pausa entre servidores ao reconectar vários
+FUSO = ZoneInfo("America/Sao_Paulo")  # horário usado nas respostas de cumprimento
 AVISO_TIMEOUT = 10           # tempo máximo (segundos) para avisar as desconexões ao desligar
 
 # Motivos que aparecem no /tempo-online
@@ -265,10 +269,34 @@ def embed_desconexao(registro: dict) -> discord.Embed:
     return embed
 
 
+# ------------------------------------------------------------ cumprimentos ---
+# Maiúsculas/minúsculas não importam e a última letra de dia/tarde/noite pode repetir
+# ("bom diaaa"). As duas palavras precisam estar na mensagem.
+RE_BOM_DIA = re.compile(r"\bbom\s+dia+\b", re.IGNORECASE)
+RE_BOA_TARDE = re.compile(r"\bboa\s+tarde+\b", re.IGNORECASE)
+RE_BOA_NOITE = re.compile(r"\bboa\s+noite+\b", re.IGNORECASE)
+
+
+def resposta_cumprimento(texto: str, agora: datetime) -> str | None:
+    """Resposta para o cumprimento, se ele combina com o horário; senão None."""
+    minutos = agora.hour * 60 + agora.minute
+    if 6 * 60 <= minutos < 12 * 60:
+        return "Bom dia!" if RE_BOM_DIA.search(texto) else None
+    if 12 * 60 <= minutos < 18 * 60:
+        return "Boa tarde!" if RE_BOA_TARDE.search(texto) else None
+    if not RE_BOA_NOITE.search(texto):
+        return None
+    # 00:01 às 05:59 o bot "dorme"; 18:00 até 00:00 é boa noite normal.
+    if 1 <= minutos < 6 * 60:
+        return "Hora do meu descanso, boa noite!"
+    return "Boa noite!"
+
+
 # ------------------------------------------------------------------- bot ---
 class Minox(discord.AutoShardedClient):
     def __init__(self) -> None:
-        intents = discord.Intents.default()  # guilds + voice_states, sem intents privilegiadas
+        intents = discord.Intents.default()  # guilds + voice_states
+        intents.message_content = True  # privilegiada: necessária para ler os cumprimentos
         super().__init__(intents=intents)
         self.tree = app_commands.CommandTree(self)
         self.config = Config(CONFIG_FILE)
@@ -416,6 +444,17 @@ class Minox(discord.AutoShardedClient):
     async def on_ready(self) -> None:
         log.info("Logado como %s em %d servidor(es), %d shard(s).",
                  self.user, len(self.guilds), self.shard_count or 1)
+
+    async def on_message(self, message: discord.Message) -> None:
+        if message.author.bot or message.guild is None:
+            return
+        resposta = resposta_cumprimento(message.content, datetime.now(FUSO))
+        if resposta is None:
+            return
+        try:
+            await message.channel.send(resposta)
+        except discord.HTTPException:
+            log.warning("[%s] Sem permissão para responder em #%s.", message.guild.name, message.channel)
 
     async def on_guild_remove(self, guild: discord.Guild) -> None:
         log.info("Removido do servidor %s; apagando config.", guild.name)
