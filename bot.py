@@ -452,7 +452,7 @@ class Minox(discord.AutoShardedClient):
         if resposta is None:
             return
         try:
-            await message.channel.send(resposta)
+            await message.reply(resposta, mention_author=False)
         except discord.HTTPException:
             log.warning("[%s] Sem permissão para responder em #%s.", message.guild.name, message.channel)
 
